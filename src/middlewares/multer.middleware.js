@@ -10,5 +10,5 @@ const storage = multer.diskStorage({
     }
 })
 
-export const upload = multer({ storagegit })
+export const upload = multer({ storage })
 
