@@ -175,7 +175,7 @@ const logoutUser = asyncHandler(async (res, req) => {
 const refreshAccessToken = asyncHandler(async (req, res) => {
    const incomingRefreshToken = req.cookies.refreshToken || req.body.refreshToken
 
-   if (incomingRefreshToken) {
+   if (!incomingRefreshToken) {
       throw new ApiError(401, "unauthorized request")
    }
 
@@ -207,7 +207,7 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
             new ApiResponse(200, { accessToken, refreshToken: newrefreshToken }, "Access Token refresh successfully")
          )
    } catch (error) {
-         throw new ApiError(401, "Invaid refersh token")
+      throw new ApiError(401, "Invaid refersh token")
    }
 })
 export { resgiterUser, loginUser, logoutUser, refreshAccessToken }
