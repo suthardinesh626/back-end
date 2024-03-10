@@ -4,6 +4,7 @@ import { User } from "../models/user.model.js"
 import { uploadOnCloudinary } from "../utils/cloudinary.js"
 import { ApiResponse } from "../utils/ApiResponse.js"
 import jwt from "jsonwebtoken"
+import mongoose from "mongoose"
 
 const generateAccessAndRefreshTokens = async (userId) => {
    try {
@@ -256,7 +257,9 @@ const updateAccountDetail = asyncHandler(async (req, res) => {
       }
    ).select("-password")
 
-   return res.status(200).json(new ApiResponse(200, user, "Account details are upadted succesfully"))
+   return res
+      .status(200)
+      .json(new ApiResponse(200, user, "Account details are upadted succesfully"))
 })
 
 const updateUserAvatar = asyncHandler(async (res, req) => {
@@ -318,4 +321,128 @@ const updateUserCoverImage = asyncHandler(async (res, req) => {
       .json(new ApiResponse(200, user, "Cover Image is updated succesfully"))
 })
 
-export { resgiterUser, loginUser, logoutUser, refreshAccessToken, changeCurrentPassword, getCurrentuser, updateAccountDetail, updateUserAvatar, updateUserCoverImage }
+const getuserChannelProfile = asyncHandler(async (res, req) => {
+   const { username } = req.params
+
+   if (!username?.trim()) {
+      throw new ApiError(400, "Username is missing ")
+   }
+
+   const channel = await User.agrregate([
+      {
+         $match: {
+            username: username?.toLowercase()
+
+         }
+      },
+      {
+         $lookup: {
+            from: "Subscription",
+            localFeild: "_id",
+            foreignFiels: "channel",
+            as: "subscribers"
+         }
+      },
+      {
+         $lookup: {
+            from: "Subscription",
+            localFeild: "_id",
+            foreignFiels: "subscriber",
+            as: "subscribedTo"
+         }
+      },
+      {
+         $addFeilds: {
+            subscriberCount: {
+               $size: "$subscribers"
+            },
+            channelSubscribedToCount: {
+               $size: "$subscribedTo"
+            },
+            isSubscribed: {
+               $cond: {
+                  if: { $in: [req.user?._id, "$subscribers.subscriber"] },
+                  then: true,
+                  else: false
+               }
+            }
+         }
+      },
+      {
+         $project: {
+            fullName: 1,
+            username: 1,
+            subscribersCount: 1,
+            subscriberCount: 1,
+            channelSubscribedToCount: 1,
+            isSubscribed: 1,
+            avatar: 1,
+            coverImage: true,
+            email: true,
+
+         }
+      }
+   ])
+
+   if (!channel?.length) {
+      throw new ApiError(400, "Channel does not exists")
+   }
+
+   return res
+      .status(200)
+      .json(
+         new ApiResponse(200, channel[0], "user channel fetched successfully")
+      )
+})
+
+const getWatchHistory = asyncHandler(async (req, res) => {
+   const user = await User.aggregate([
+      {
+         $match: {
+            _id: new mongoose.Types.ObjectId(req.user._id)
+         }
+      },
+      {
+         $lookup: {
+            from: "videos",
+            localField: "watchHistory",
+            foreignFiled: "_id",
+            as: "watchHistory",
+            pipeline: [
+               {
+                  $lookup: {
+                     from: "users",
+                     localField: "owner",
+                     foreignField: "_id",
+                     as: "owner",
+                     pipeline: [
+                        {
+                           $project: {
+                              fullname: 1,
+                              fullname: 1,
+                              avatar: 1
+                           }
+                        }
+                     ]
+                  }
+               },
+               {
+                  $addFields: {
+                     owner: {
+                        $first: "owner"
+                     }
+                  }
+               }
+            ]
+         }
+      }
+   ])
+
+   return res
+      .status(200)
+      .json(
+         new ApiResponse(200, user[0].watchHistory, "Waatch History fetched succesfully")
+      )
+})
+
+export { resgiterUser, loginUser, logoutUser, refreshAccessToken, changeCurrentPassword, getCurrentuser, updateAccountDetail, updateUserAvatar, updateUserCoverImage, getuserChannelProfile, getWatchHistory }

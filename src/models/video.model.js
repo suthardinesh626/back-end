@@ -24,7 +24,7 @@ const videoSchema = new Schema(
             type: Number, //cloudinary 
             requied: true,
         },
-        view: {
+        views: {
             type: Number,  
             default: 0,
         },
@@ -42,6 +42,6 @@ const videoSchema = new Schema(
     }
 )
 
-videoSchema
+videoSchema.plugin(mongooseAggregatePaginate)
 
 export const Video = mongoose.model("Video", videoSchema)
